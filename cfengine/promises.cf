@@ -1,0 +1,98 @@
+########################################################
+#
+# Main promise file
+#
+########################################################
+
+body common control
+{
+  domain    => "test.lan";
+  version   => "awsome";
+
+  bundlesequence => { "main" };
+
+  inputs  =>  { 
+                 @(cfengine_stdlib.inputs),
+              };
+}
+
+bundle agent main
+{
+  vars:
+    web::
+      "packages"
+        slist => { 
+                  "httpd",
+                  "mysql",
+                  };
+    db::
+      "packages"
+        slist => {
+                  "mysql-server",
+                 };
+  packages:
+    "$(packages)"
+      package_policy => "add",
+      package_method => generic;
+  services:
+    web::
+      "www"
+      service_policy => "start";
+
+    db::
+      "mysql"
+        service_policy => "start";
+  
+  methods:
+    web::
+      "any" usebundle => "iptables_config";
+
+  reports:
+    "Hello World!";
+}
+
+bundle agent iptables_config
+{
+  files:
+    "/etc/sysconfig/iptables"
+      create => "true",
+      edit_line => add_rules,
+      classes => if_repaired("iptables_reload");
+
+  commands:
+    iptables_reload::
+      "/etc/init.d/iptables restart";
+}
+
+bundle edit_line add_rules
+{
+  insert_lines:
+    "-A INPUT -p tcp -m tcp --dport 80 -j ACCEPT"
+      location => output_accept; 
+}
+
+body location output_accept
+{
+  before_after => "after";
+  first_last => "first";
+  select_line_matching => "^:OUTPUT ACCEPT.*";
+}
+
+bundle common cfengine_stdlib
+{
+  vars:
+      "inputs" slist => {
+                          "/var/cfengine/inputs/lib/3.5/paths.cf",
+                          "/var/cfengine/inputs/lib/3.5/common.cf",
+                          "/var/cfengine/inputs/lib/3.5/commands.cf",
+                          "/var/cfengine/inputs/lib/3.5/packages.cf",
+                          "/var/cfengine/inputs/lib/3.5/files.cf",
+                          "/var/cfengine/inputs/lib/3.5/services.cf",
+                          "/var/cfengine/inputs/lib/3.5/processes.cf",
+                          "/var/cfengine/inputs/lib/3.5/storage.cf",
+                          "/var/cfengine/inputs/lib/3.5/databases.cf",
+                          "/var/cfengine/inputs/lib/3.5/monitor.cf",
+                          "/var/cfengine/inputs/lib/3.5/guest_environments.cf",
+                          "/var/cfengine/inputs/lib/3.5/bundles.cf",
+      };
+}

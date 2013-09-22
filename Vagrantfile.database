@@ -1,0 +1,48 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+# Vagrantfile API/syntax version. Don't touch unless you know what you're doing!
+VAGRANTFILE_API_VERSION = "2"
+
+Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
+  # config.hostmanager.enabled = true
+  config.vm.box              = 'centos'
+  config.vm.box_url          = 'http://puppet-vagrant-boxes.puppetlabs.com/centos-64-x64-vbox4210-nocm.box'
+
+ config.vm.provider :vmware_fusion do |v, override|
+    override.vm.box            = 'centos-vmware'
+    override.vm.box_url = 'http://puppet-vagrant-boxes.puppetlabs.com/centos-64-x64-fusion503-nocm.box'
+    v.vmx['memsize']           = '1024'
+  end
+  
+  config.vm.define :web do |web|
+    web.vm.network :private_network, ip: '192.168.13.6'
+    web.vm.hostname = 'web.foo.lan'
+    web.vm.network :forwarded_port, guest: 80, host: 8001
+    # web.vm.synced_folder "html", "/var/www/html"
+
+    web.vm.provision :cfengine do |cf3|
+    cf3.am_policy_hub = false
+    cf3.run_file = 'cfengine/promises.cf'
+    cf3.files_path = 'cfengine'
+    cf3.policy_server_address = 'web.foo.lan'
+    end
+  end
+
+  config.vm.define :database do |db|
+    db.vm.hostname = 'db.foo.lan'
+    db.vm.network :private_network, ip: '192.168.13.3'
+
+    db.vm.provision :cfengine do |cf3|
+      cf3.am_policy_hub = false
+      cf3.run_file = 'cfengine/promises.cf'
+      cf3.files_path = 'cfengine'
+      cf3.policy_server_address = 'db.foo.lan'
+    end 
+  end
+
+  config.vm.provider :virtualbox do |v|
+    v.customize ['modifyvm', :id, '--memory', '512']
+  end
+  
+end
