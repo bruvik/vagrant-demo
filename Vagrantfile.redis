@@ -1,0 +1,42 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+# Vagrantfile API/syntax version. Don't touch unless you know what you're doing!
+VAGRANTFILE_API_VERSION = "2"
+
+$redis = <<EOL
+!#/bin/bash
+wget http://download.redis.io/releases/redis-2.6.16.tar.gz
+tar xzf redis-2.6.16.tar.gz
+cd redis-2.6.16
+make
+make install
+EOL
+
+Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
+  # config.hostmanager.enabled = true
+  config.vm.box              = 'centos'
+  config.vm.box_url          = 'http://puppet-vagrant-boxes.puppetlabs.com/centos-64-x64-vbox4210-nocm.box'
+
+ config.vm.provider :vmware_fusion do |v, override|
+    override.vm.box            = 'centos-vmware'
+    override.vm.box_url = 'http://puppet-vagrant-boxes.puppetlabs.com/centos-64-x64-fusion503-nocm.box'
+    v.vmx['memsize']           = '1024'
+  end
+  
+  config.vm.define :redis do |redis|
+    redis.vm.network :private_network, ip: '192.168.13.6'
+    redis.vm.hostname = 'redis.foo.lan'
+    redis.vm.network :forwarded_port, guest: 80, host: 8001
+    # redis.vm.synced_folder "html", "/var/www/html"
+
+    redis.vm.provision :shell do |config|
+      config.inline = $redis
+    end
+  end
+
+  config.vm.provider :virtualbox do |v|
+    v.customize ['modifyvm', :id, '--memory', '512']
+  end
+  
+end
